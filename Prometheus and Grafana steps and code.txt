@@ -1,0 +1,117 @@
+Chuẩn bị máy CentOS 7 Linux Server GUI
+Cập nhật Linux: yum update -y
+Đồng bộ NTP linux: ntpdate 1.ro.pool.ntp.org
+Vô hiệu hóa SELinux: vim /etc/sysconfig/selinux sau đó thay đổi “SELINUX=enforce” thành “SELINUX=disabled”.
+=============================================================
+Cài iptables thay thế cho firewalld
+Bước 1: remove firewalld 
+
+systemctl stop firewalld
+systemctl disable firewalld
+systemctl mask --now firewalld
+
+Bước 2: Cài đặt Iptables
+
+yum install iptables-services -y
+systemctl start iptables
+systemctl enable iptables
+
+Mở các port sau
+sudo iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+sudo iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 3000 -j ACCEPT
+sudo iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 9090 -j ACCEPT
+=============================================================
+Cài đặt Prometheus
+
+wget https://github.com/prometheus/prometheus/releases/download/v2.10.0/prometheus-2.10.0.linux-amd64.tar.gz
+tar -xvzf prometheus-2.10.0.linux-amd64.tar.gz
+mv prometheus-2.10.0.linux-amd64 /usr/local/prometheus/
+
+Tạo service prometheus trong systemd
+
+vim /etc/systemd/system/prometheus.service với nội dung
+
+[Unit]
+Description=Prometheus
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=root
+Group=root
+Type=simple
+ExecStart=/usr/local/prometheus/prometheus \
+--config.file /usr/local/prometheus/prometheus.yml \
+--storage.tsdb.path /usr/local/prometheus/ \
+--web.console.templates=/usr/local/prometheus/consoles \
+--web.console.libraries=/usr/local/prometheus/console_libraries
+
+[Install]
+WantedBy=multi-user.target
+
+Restart và enable services.
+
+systemctl daemon-reload
+systemctl start prometheus
+systemctl status prometheus
+=============================================================
+Cài đặt Grafana
+
+wget https://dl.grafana.com/oss/release/grafana-6.2.1-1.x86_64.rpm
+sudo yum localinstall grafana-6.2.1-1.x86_64.rpm
+sudo service grafana-server start
+sudo /sbin/chkconfig --add grafana-server
+systemctl daemon-reload
+systemctl start grafana-server
+systemctl status grafana-server
+sudo systemctl enable grafana-server.service
+
+Truy cập vào Grfana: localhost:3000
+
+=============================================================
+Trên 2 Window Server ADDS và FTP nhập vào CMD với quyền Admin
+Mở port 9182 trên server linux, và windows server.
+wmi_exporter.msi (dùng để cài đặt thông qua CMD, enable các tính năng thu thập metric nâng cao).
+Khi cài agent qua CMD sẽ giúp các bạn chọn lọc thu thập những loại metric nào cần thu thập, giảm các loại metric không cần thiết, có thể thu thập nhiều loại metric hơn mặc định.
+ENABLED_COLLECTORS=”các loại metric cần thu thập, tên của loại metric trong hình bên trên”
+
+
+ADDS:	msiexec /i C:\WMI\windows_exporter-0.18.1-amd64.msi ENABLED_COLLECTORS="ad,cpu,cs,dns,logical_disk,logon,memory,net,os,process,service,system,tcp,thermalzone,terminal_services"
+FTP: 	msiexec /i C:\WMI\windows_exporter-0.18.1-amd64.msi ENABLED_COLLECTORS="ad,cpu,cs,iis,logical_disk,logon,memory,net,os,process,service,system,tcp,thermalzone,terminal_services"
+=============================================================
+
+sudo iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 9182 -j ACCEPT
+nano /usr/local/prometheus/prometheus.yml thêm nội dung sau
+
+  - job_name: 'Node_Window_Server'
+
+	# metrics_path defaults to '/metrics'
+	# scheme defaults to 'http'.
+
+	static_configs:
+	- targets: ['192.168.200.100:9182']
+#		labels:
+#		hostname: 	ADDS
+#		type: 		Window
+#		company:	EEP
+
+	- targets: ['192.168.200.101:9182']
+#		labels:
+#		hostname: 	FTP
+#		type: 		Window
+#		company:	EEP
+Ctrl + O lưu Ctrl + X để đóng
+
+
+systemctl restart prometheus
+systemctl status prometheus
+=============================================================
+Kiểm tra lại host được thêm vào prometheus thành công hay không.
+
+Truy cập vào Prometheus sau đó chọn Status, target để kiểm tra.
+
+Trên IT Linux: 192.168.200.150:9090
+==============================================================
+
+
+
