@@ -1,0 +1,28 @@
+Chuẩn bị máy CentOS 7 Linux Server GUI
+Cập nhật Linux: yum update -y
+Đồng bộ NTP linux: ntpdate 1.ro.pool.ntp.org
+Vô hiệu hóa SELinux: vim /etc/sysconfig/selinux sau đó thay đổi “SELINUX=enforce” thành “SELINUX=disabled”.
+=====================================================
+tar xvzf splunk-8.2.6-a6fe1ee8894b-Linux-x86_64.tgz
+cd /splunk/bin
+./splunk start --accept-license
+./splunk enable boot-start
+cd .. (x2)
+tar xvzf splunkforwarder-8.2.6-a6fe1ee8894b-Linux-x86_64.tgz
+cd /splunkforwarder/bin
+./splunk start --accept-license
+y
+port 8090
+./splunk add monitor /var/log
+vào localhost:8000 và tạo reciever port 9997 (default)
+restart dịch vụ splunk và splunkforwarder
+=======================================================
+Qua bên máy ADDS và FTP cài UniSplunkForwarder
+Cài xong vô Powershell (admin) restart lại dịch vụ
+
+mở port cho dịch vụ
+firewall-cmd --add-port=8000/tcp --permanent
+firewall-cmd --add-port=9997/tcp --permanent
+firewall-cmd --restart
+
+mở cổng 8000/tcp trên firewall
